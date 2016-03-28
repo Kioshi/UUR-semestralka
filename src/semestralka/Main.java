@@ -3,19 +3,19 @@ package semestralka;
 import javafx.application.Application;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.scene.layout.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 import javafx.util.converter.NumberStringConverter;
 
 
@@ -27,34 +27,50 @@ public class Main extends Application
     private final ObservableList<Player> hraci = FXCollections.observableArrayList();
     private final TableView tableView = new TableView();
     private Stage scoreStage;
+    private Stage graphStage;
 
     @Override
-    public void start(Stage primaryStage) throws Exception{
+    public void start(Stage primaryStage)// throws Exception
+    {
         primaryStage.setTitle("Semestralka main");
 
         BorderPane root = new BorderPane();
         root.setCenter(createTable());
         root.setBottom(createBottom());
 
-        primaryStage.setScene(new Scene(root,400,500));
+        primaryStage.setScene(new Scene(root,250,500));
+        primaryStage.setMinWidth(210);
+
+        //clean created windows when main window close
+        primaryStage.setOnCloseRequest(event ->
+        {
+            if (scoreStage != null) scoreStage.close();
+            if (graphStage != null) graphStage.close();
+        });
+
         primaryStage.show();
-        primaryStage.setOnCloseRequest(event -> {if (scoreStage != null) scoreStage.close();} );
     }
 
     private Node createBottom()
     {
         FlowPane controlPane = new FlowPane();
 
-        // creating buttons
-        Button add = new Button("Pridat hrace");
-        Button del = new Button("Odebrat hrace");
-        Button addScore = new Button("Pridat score");
+        // Table is now keyboard controlable so i dont use add and del buttons + their alternative is in menu
+        /*
+        Button buttAdd = new Button("Pridat hrace");
+        Button buttDel = new Button("Odebrat hrace");
+        buttAdd.setOnAction(event -> addPlayer(false));
+        buttDel.setOnAction(event -> delPlayers());
+        controlPane.getChildren().addAll(buttAdd, buttDel);
+        */
 
-        add.setOnAction(event -> addPlayer());
-        del.setOnAction(event -> delPlayers());
-        addScore.setOnAction(event -> addScore());
+        Button buttAddScore = new Button("Přidat points");
+        buttAddScore.setOnAction(event -> addScore());
+        controlPane.getChildren().addAll(buttAddScore);
 
-        controlPane.getChildren().addAll(add, del, addScore);
+        Button buttShowGraph = new Button("Zobrazit graf");
+        buttShowGraph.setOnAction(event -> showGraph());
+        controlPane.getChildren().addAll(buttShowGraph);
 
         for (Node node : controlPane.getChildren())
         {
@@ -69,6 +85,21 @@ public class Main extends Application
         return controlPane;
     }
 
+    private void showGraph()
+    {
+
+    }
+
+    // Allert when no players were selected
+    private void throwAllert()
+    {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Chyba přidání bodů");
+        alert.setHeaderText("Nebyly vybráni žádní hráči!");
+        alert.show();
+    }
+
+    //Create new window for adding score
     private void addScore()
     {
         if (scoreStage != null)
@@ -76,53 +107,60 @@ public class Main extends Application
 
         BorderPane root = new BorderPane();
 
-        final StringBuilder text = new StringBuilder("Vybrani: ");
+        final StringBuilder text = new StringBuilder("Vybraní: ");
         ObservableList<Player> selected = tableView.getSelectionModel().getSelectedItems();
         if (selected.isEmpty())
         {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Chyba pridani score");
-            alert.setHeaderText("Nebyly vybrani zadni hraci!");
-            alert.show();
+            throwAllert();
             return;
         }
-        selected.forEach(o -> {
-            text.append(((Player) o).jmeno + ", ");
-        });
+
+        // Fill text
+        selected.forEach(o -> text.append(o.name + ", "));
+
+        // Create text
         Label label = new Label(text.toString().substring(0,text.length()-2));
         label.setAlignment(Pos.CENTER);
         label.setPadding(new Insets(5));
 
+        //Create numeric text field
         TextField textField = new TextField("0");
         textField.setAlignment(Pos.CENTER);
-        Button butt = new Button("Pridat");
+
+        //Create button
+        Button butt = new Button("Přidat");
         butt.setAlignment(Pos.CENTER);
+
+        //Create stage
         scoreStage = new Stage();
+
+        //Set on click action
         final Stage stage = scoreStage;
         butt.setOnAction(event ->
         {
             for (Player player : hraci)
-            {
                 if (selected.contains(player))
-                    player.body += Integer.parseInt(textField.getText());
-            }
+                    player.setPoints(player.getPoints() + Integer.parseInt(textField.getText()));
             tableView.refresh();
             stage.close();
         });
 
+        //Create layout
         VBox box = new VBox(10);
 
         box.setAlignment(Pos.CENTER);
         box.getChildren().add(label);
         box.getChildren().add(textField);
         box.getChildren().add(butt);
-
         root.setTop(box);
-        scoreStage.setTitle("My New Stage Title");
+
+        //Show
+        scoreStage.setTitle("Přidat body");
         scoreStage.setScene(new Scene(root, 200, 100));
         scoreStage.show();
     }
 
+    //Delete selected players
     private void delPlayers()
     {
         ObservableList<Player> list = tableView.getSelectionModel().getSelectedItems();
@@ -131,25 +169,36 @@ public class Main extends Application
         tableView.getSelectionModel().clearSelection();
     }
 
-    private void addPlayer()
+    //Add new row with empty name and 0 points
+    private void addPlayer(boolean checkSelection)
     {
+        //Check if selected item is last row (for addPlayer called from down arrow event)
+        if (checkSelection)
+        {
+            ObservableList<Player> list = tableView.getSelectionModel().getSelectedItems();
+            if (list.size() > 1 || list.get(0) != hraci.get(hraci.size() - 1))
+                return;
+        }
+
+        //Check if row without player name isnt already created
         int onlyFocus = -1;
         for (int i=0;i<hraci.size();i++)
         {
-            //System.out.println(hraci.get(i).jmeno);
-            if (hraci.get(i).jmeno.isEmpty())
+            if (hraci.get(i).name.isEmpty())
             {
                 onlyFocus = i;
                 break;
             }
         }
 
+        //Create new row only in !onlyFocus case
         if (onlyFocus == -1)
         {
             hraci.add(new Player("", 0));
             tableView.scrollTo(hraci.size()-1);
         }
 
+        //Scroll and focus new row
         tableView.getSelectionModel().clearSelection();
         tableView.requestFocus();
         tableView.getSelectionModel().select(hraci.size() - 1);
@@ -159,63 +208,53 @@ public class Main extends Application
 
     private Node createTable()
     {
-        TableColumn<Player,String> jmeno = new TableColumn<>("Jmeno");
+        //Name column create and settings
+        TableColumn<Player,String> nameCol = new TableColumn<>("Jmeno");
+        //Factories
+        nameCol.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().name));
+        nameCol.setCellFactory(TextFieldTableCell.<Player>forTableColumn());
+        //Change data on edit
+        nameCol.setOnEditCommit(t ->  t.getTableView().getItems().get(t.getTablePosition().getRow()).setName(t.getNewValue()));
+        //Size
+        nameCol.setMaxWidth( 1f * Integer.MAX_VALUE * 70 ); // 70% width
+        nameCol.setMinWidth(100);
+
+        //Points column create and settings
         TableColumn<Player,Number> body = new TableColumn<>("Body");
-        tableView.getColumns().addAll(jmeno,body);
+        //Factories
+        body.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().points));
+        body.setCellFactory(TextFieldTableCell.<Player,Number>forTableColumn(new NumberStringConverter()));
+        //Change data on edit
+        body.setOnEditCommit(t -> t.getTableView().getItems().get(t.getTablePosition().getRow()).setPoints(t.getNewValue().intValue()));
+        //Default sort
+        body.setSortType(TableColumn.SortType.DESCENDING);
+        //Size
+        body.setMaxWidth( 1f * Integer.MAX_VALUE * 30 ); // 30% width
+        body.setMinWidth(50);
+
+        //Table settings
+        tableView.getColumns().addAll(nameCol,body);
+        //Init data for testing
         tableView.setItems(createInitData(5));
         tableView.setPrefWidth(Double.MAX_VALUE);
         tableView.setEditable(true);
         tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        body.setSortType(TableColumn.SortType.DESCENDING);
-
-        jmeno.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<Player,String>, ObservableValue<String>>()
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);;
+        //Keyboard control
+        tableView.setOnKeyPressed(event ->
         {
-        @Override
-            public ObservableValue<String> call(TableColumn.CellDataFeatures<Player, String> p)
-            {
-                return new SimpleStringProperty(p.getValue().jmeno);
-            }
+            if (event.getCode().equals(KeyCode.DELETE))
+                delPlayers();
+            if (event.getCode().equals(KeyCode.DOWN))
+                addPlayer(true);
         });
-
-        jmeno.setCellFactory(TextFieldTableCell.<Player>forTableColumn());
-        jmeno.setOnEditCommit(new EventHandler<TableColumn.CellEditEvent<Player,String>>()
-        {
-            @Override
-            public void handle(TableColumn.CellEditEvent<Player, String> t) {
-                ((Player) t.getTableView().getItems().get(
-                        t.getTablePosition().getRow())
-                ).setJmeno(t.getNewValue());
-            }
-        });
-
-
-        body.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<Player,Number>, ObservableValue<Number>>()
-        {
-             @Override
-             public ObservableValue<Number>
-             call(TableColumn.CellDataFeatures<Player, Number> p) {
-                 return new SimpleIntegerProperty(p.getValue().body);
-             }
-
-         });
-        body.setCellFactory(TextFieldTableCell.<Player,Number>forTableColumn(new NumberStringConverter()));
-
-        body.setOnEditCommit(new EventHandler<TableColumn.CellEditEvent<Player,Number>>()
-        {
-            @Override
-            public void handle(TableColumn.CellEditEvent<Player, Number> t) {
-                ((Player) t.getTableView().getItems().get(
-                        t.getTablePosition().getRow())
-                ).setBody(t.getNewValue().intValue());
-            }
-        });
-
 
         BorderPane.setMargin(tableView, new Insets(5));
 
         return tableView;
     }
 
+    // Init test data
     private ObservableList createInitData(int n)
     {
         for (int  i = 0; i<n;i++)
@@ -234,33 +273,33 @@ public class Main extends Application
 
     public class Player
     {
-        private String jmeno;
-        private int body;
+        private String name;
+        private int points;
 
-        public Player(String jmeno, int body)
+        public Player(String name, int points)
         {
-            this.jmeno = jmeno;
-            this.body = body;
+            this.name = name;
+            this.points = points;
         }
 
-        public String getJmeno()
+        public String getName()
         {
-            return jmeno;
+            return name;
         }
 
-        public void setJmeno(String jmeno)
+        public void setName(String name)
         {
-            this.jmeno = jmeno;
+            this.name = name;
         }
 
-        public int getBody()
+        public int getPoints()
         {
-            return body;
+            return points;
         }
 
-        public void setBody(int body)
+        public void setPoints(int points)
         {
-            this.body = body;
+            this.points = points;
         }
     }
 }
