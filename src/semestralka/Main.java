@@ -124,8 +124,8 @@ public class Main extends Application
         label.setPadding(new Insets(5));
 
         //Create numeric text field
-        TextField textField = new TextField("0");
-        textField.setAlignment(Pos.CENTER);
+        NumericField<Integer> numericField = new NumericField<>(0);
+        numericField.setAlignment(Pos.CENTER);
 
         //Create button
         Button butt = new Button("Přidat");
@@ -140,7 +140,7 @@ public class Main extends Application
         {
             for (Player player : hraci)
                 if (selected.contains(player))
-                    player.setPoints(player.getPoints() + Integer.parseInt(textField.getText()));
+                    player.setPoints(player.getPoints() + numericField.value);
             tableView.refresh();
             stage.close();
         });
@@ -150,7 +150,7 @@ public class Main extends Application
 
         box.setAlignment(Pos.CENTER);
         box.getChildren().add(label);
-        box.getChildren().add(textField);
+        box.getChildren().add(numericField);
         box.getChildren().add(butt);
         root.setTop(box);
 
