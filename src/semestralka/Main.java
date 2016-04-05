@@ -18,6 +18,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.converter.NumberStringConverter;
 
+import java.util.ArrayList;
+
 
 /**
  * Created by smartine on 8.3.2016.
@@ -87,7 +89,7 @@ public class Main extends Application
 
     private void showGraph()
     {
-
+        new TreeStage(tableView.getItems()).show();
     }
 
     // Allert when no players were selected
@@ -275,11 +277,13 @@ public class Main extends Application
     {
         private String name;
         private int points;
+        private ArrayList<Integer> pointsHistory = new ArrayList<>();
 
         public Player(String name, int points)
         {
             this.name = name;
             this.points = points;
+            pointsHistory.add(points);
         }
 
         public String getName()
@@ -299,7 +303,13 @@ public class Main extends Application
 
         public void setPoints(int points)
         {
+            pointsHistory.add(points - this.points);
             this.points = points;
+        }
+
+        public ArrayList<Integer> getPointsHistory()
+        {
+            return pointsHistory;
         }
     }
 }
