@@ -1,9 +1,12 @@
 package semestralka;
 
 import javafx.application.Application;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -42,6 +45,22 @@ public class Main extends Application
 
         primaryStage.setScene(new Scene(root,250,500));
         primaryStage.setMinWidth(210);
+        hraci.addListener(new ListChangeListener<Player>()
+        {
+            @Override
+            public void onChanged(Change<? extends Player> c)
+            {
+                System.out.println("change");
+            }
+        });
+        hraci.addListener(new InvalidationListener()
+        {
+            @Override
+            public void invalidated(Observable observable)
+            {
+                System.out.println("invalid");
+            }
+        });
 
         //clean created windows when main window close
         primaryStage.setOnCloseRequest(event ->

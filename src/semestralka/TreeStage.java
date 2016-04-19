@@ -1,5 +1,6 @@
 package semestralka;
 
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.TreeItem;
@@ -12,6 +13,7 @@ import javafx.stage.Stage;
  */
 public class TreeStage extends Stage
 {
+    TreeView<TreeItemType> treeView;
     ObservableList<Main.Player> players;
 
     public TreeStage(ObservableList<Main.Player> players)
@@ -24,16 +26,20 @@ public class TreeStage extends Stage
         BorderPane root = new BorderPane();
 
         TreeItem<TreeItemType> dummyRoot = new TreeItem<>();
-        TreeView<TreeItemType> treeView = new TreeView<>(dummyRoot);
+        treeView = new TreeView<>(dummyRoot);
         treeView.setShowRoot(false);
         players.forEach(player ->
         {
             TreeItem<TreeItemType> playerItem = new TreeItem<TreeItemType>(new TreeItemType(player));
-            //player.getPointsHistory().forEach(integer -> playerItem.getChildren().add(new TreeItem<>(new TreeItemType(integer))));
+            player.getPointsHistory().forEach(integer -> playerItem.getChildren().add(new TreeItem<>(new TreeItemType(integer))));
             dummyRoot.getChildren().add(playerItem);
         });
 
         treeView.setCellFactory(param -> new PlayerCell());
+        Stage s = this;
+        players.addListener((ListChangeListener<Main.Player>) c -> {
+            treeView.refresh();
+        });
 
         root.setCenter(treeView);
 
