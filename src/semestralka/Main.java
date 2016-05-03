@@ -40,6 +40,7 @@ public class Main extends Application
         primaryStage.setTitle("Semestralka main");
 
         BorderPane root = new BorderPane();
+        root.setTop(createTop());
         root.setCenter(createTable());
         root.setBottom(createBottom());
 
@@ -70,6 +71,27 @@ public class Main extends Application
         });
 
         primaryStage.show();
+    }
+
+    private Node createTop()
+    {
+        MenuBar menuBar = new MenuBar();
+        Menu file = new Menu("Soubor");
+        MenuItem open = new MenuItem("Otevrit");
+        MenuItem save = new MenuItem("Ulozit");
+        MenuItem saveAs = new MenuItem("Ulozit jako");
+        file.getItems().addAll(open,save,saveAs);
+
+        Menu control = new Menu("Data");
+        MenuItem add = new MenuItem("Pridat řádek");
+        add.setOnAction(event -> addPlayer(false));
+        MenuItem delete = new MenuItem("Odebrat řádky");
+        delete.setOnAction(event -> delPlayers());
+        control.getItems().addAll(add,delete);
+
+        menuBar.getMenus().addAll(file, control);
+
+        return menuBar;
     }
 
     private Node createBottom()
