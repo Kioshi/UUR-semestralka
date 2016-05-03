@@ -32,7 +32,7 @@ public class Main extends Application
     private final ObservableList<Player> hraci = FXCollections.observableArrayList();
     private final TableView tableView = new TableView();
     private Stage scoreStage;
-    private Stage graphStage;
+    private Stage historyStage;
 
     @Override
     public void start(Stage primaryStage)// throws Exception
@@ -66,7 +66,7 @@ public class Main extends Application
         primaryStage.setOnCloseRequest(event ->
         {
             if (scoreStage != null) scoreStage.close();
-            if (graphStage != null) graphStage.close();
+            if (historyStage != null) historyStage.close();
         });
 
         primaryStage.show();
@@ -85,11 +85,11 @@ public class Main extends Application
         controlPane.getChildren().addAll(buttAdd, buttDel);
         */
 
-        Button buttAddScore = new Button("Přidat points");
+        Button buttAddScore = new Button("Přidat body");
         buttAddScore.setOnAction(event -> addScore());
         controlPane.getChildren().addAll(buttAddScore);
 
-        Button buttShowGraph = new Button("Zobrazit graf");
+        Button buttShowGraph = new Button("Zobrazit historii");
         buttShowGraph.setOnAction(event -> showGraph());
         controlPane.getChildren().addAll(buttShowGraph);
 
@@ -197,7 +197,7 @@ public class Main extends Application
         if (checkSelection)
         {
             ObservableList<Player> list = tableView.getSelectionModel().getSelectedItems();
-            if (list.size() > 1 || list.get(0) != hraci.get(hraci.size() - 1))
+            if (list.size() > 1 && list.get(0) != hraci.get(hraci.size() - 1))
                 return;
         }
 
@@ -205,7 +205,7 @@ public class Main extends Application
         int onlyFocus = -1;
         for (int i=0;i<hraci.size();i++)
         {
-            if (hraci.get(i).name.isEmpty())
+            if (hraci.get(i).name.equals("HRAC"))
             {
                 onlyFocus = i;
                 break;
@@ -215,7 +215,7 @@ public class Main extends Application
         //Create new row only in !onlyFocus case
         if (onlyFocus == -1)
         {
-            hraci.add(new Player("", 0));
+            hraci.add(new Player("HRAC", 0));
             tableView.scrollTo(hraci.size()-1);
         }
 
@@ -278,6 +278,7 @@ public class Main extends Application
     // Init test data
     private ObservableList createInitData(int n)
     {
+        n = 1;
         for (int  i = 0; i<n;i++)
         {
             hraci.add(new Player("Hrac "+(i+1), 78/(i+1)));
@@ -292,7 +293,7 @@ public class Main extends Application
     }
 
 
-    public class Player
+    public class Player implements Observable
     {
         private String name;
         private int points;
@@ -312,7 +313,10 @@ public class Main extends Application
 
         public void setName(String name)
         {
+            if (name.isEmpty())
+                return;
             this.name = name;
+            notifyListeners();
         }
 
         public int getPoints()
@@ -324,11 +328,31 @@ public class Main extends Application
         {
             pointsHistory.add(points - this.points);
             this.points = points;
+            notifyListeners();
         }
 
         public ArrayList<Integer> getPointsHistory()
         {
             return pointsHistory;
+        }
+
+        private void notifyListeners()
+        {
+            for (InvalidationListener listener : listeners)
+                listener.invalidated(this);
+        }
+
+        private ArrayList<InvalidationListener> listeners = new ArrayList<>();
+        @Override
+        public void addListener(InvalidationListener listener)
+        {
+            listeners.add(listener);
+        }
+
+        @Override
+        public void removeListener(InvalidationListener listener)
+        {
+            listeners.remove(listener);
         }
     }
 }

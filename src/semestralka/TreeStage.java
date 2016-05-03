@@ -8,6 +8,8 @@ import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 
+import java.util.ArrayList;
+
 /**
  * Created by smartine on 5.4.2016.
  */
@@ -15,6 +17,7 @@ public class TreeStage extends Stage
 {
     TreeView<TreeItemType> treeView;
     ObservableList<Main.Player> players;
+    final Stage s = this;
 
     public TreeStage(ObservableList<Main.Player> players)
     {
@@ -38,13 +41,39 @@ public class TreeStage extends Stage
         treeView.setCellFactory(param -> new PlayerCell());
         Stage s = this;
         players.addListener((ListChangeListener<Main.Player>) c -> {
+
+
+            if (treeView.getRoot().getChildren().size() > players.size())
+            {
+                ArrayList<TreeItem<TreeItemType>> toRemove = new ArrayList<TreeItem<TreeItemType>>();
+                for (TreeItem<TreeItemType> item : treeView.getRoot().getChildren())
+                {
+                    if (!players.contains(item.getValue().player))
+                    {
+                        toRemove.add(item);
+                    }
+                }
+
+                treeView.getRoot().getChildren().removeAll(toRemove);
+            }
+            else
+            {
+                Main.Player player = players.get(players.size()-1);
+                TreeItem<TreeItemType> playerItem = new TreeItem<>(new TreeItemType(player));
+                player.getPointsHistory().forEach(integer -> playerItem.getChildren().add(new TreeItem<>(new TreeItemType(integer))));
+                treeView.getRoot().getChildren().add(playerItem);
+                player.addListener(observable -> treeView.refresh());
+            }
             treeView.refresh();
         });
+
+        for (Main.Player player : players)
+            player.addListener(observable -> treeView.refresh());
 
         root.setCenter(treeView);
 
 
-        setScene(new Scene(root, 500, 200));
+        setScene(new Scene(root, 200, 200));
     }
 }
 
