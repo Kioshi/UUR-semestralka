@@ -108,7 +108,14 @@ public class Main extends Application
 
     private void showGraph()
     {
-        new TreeStage(tableView.getItems()).show();
+        if (historyStage != null)
+        {
+            historyStage.toFront();
+            historyStage.show();
+            return;
+        }
+        historyStage = new TreeStage(tableView.getItems());
+        historyStage.show();
     }
 
     // Allert when no players were selected
@@ -278,7 +285,6 @@ public class Main extends Application
     // Init test data
     private ObservableList createInitData(int n)
     {
-        n = 1;
         for (int  i = 0; i<n;i++)
         {
             hraci.add(new Player("Hrac "+(i+1), 78/(i+1)));
