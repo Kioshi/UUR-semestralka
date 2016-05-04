@@ -6,7 +6,6 @@ import javafx.beans.Observable;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,29 +14,47 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.converter.NumberStringConverter;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.Scanner;
 
 
 /**
  * Created by smartine on 8.3.2016.
+ * @author smartine
  */
 public class Main extends Application
 {
-    private final ObservableList<Player> hraci = FXCollections.observableArrayList();
+    /** List of players */
+    private final ObservableList<Player> playersList = FXCollections.observableArrayList();
+    /** tableView reference */
     private final TableView tableView = new TableView();
+    /** Score window reference */
     private Stage scoreStage;
+    /** History window reference */
     private Stage historyStage;
+    /** Main window reference */
+    private Stage mainStage;
+    /** File for saving/opening */
+    private File file;
 
     @Override
     public void start(Stage primaryStage)// throws Exception
     {
         primaryStage.setTitle("Semestralka main");
+        mainStage = primaryStage;
 
         BorderPane root = new BorderPane();
         root.setTop(createTop());
@@ -46,22 +63,6 @@ public class Main extends Application
 
         primaryStage.setScene(new Scene(root,250,500));
         primaryStage.setMinWidth(210);
-        hraci.addListener(new ListChangeListener<Player>()
-        {
-            @Override
-            public void onChanged(Change<? extends Player> c)
-            {
-                System.out.println("change");
-            }
-        });
-        hraci.addListener(new InvalidationListener()
-        {
-            @Override
-            public void invalidated(Observable observable)
-            {
-                System.out.println("invalid");
-            }
-        });
 
         //clean created windows when main window close
         primaryStage.setOnCloseRequest(event ->
@@ -73,46 +74,152 @@ public class Main extends Application
         primaryStage.show();
     }
 
+    /**
+     * Create menu bar for main window
+     * @return MenuBar
+     */
     private Node createTop()
     {
         MenuBar menuBar = new MenuBar();
-        Menu file = new Menu("Soubor");
-        MenuItem open = new MenuItem("Otevrit");
-        MenuItem save = new MenuItem("Ulozit");
-        MenuItem saveAs = new MenuItem("Ulozit jako");
-        file.getItems().addAll(open,save,saveAs);
+        Menu fileMenu = new Menu("_Soubor");
+        MenuItem open = new MenuItem("_Otevrit");
+        open.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
+        open.setOnAction(event ->
+        {
+            FileChooser fileChooser = new FileChooser();
+            File f = fileChooser.showOpenDialog(mainStage.getScene().getWindow());
+            if (f != null)
+            {
+                file = f;
+                loadFromFile();
+            }
+        });
 
-        Menu control = new Menu("Data");
-        MenuItem add = new MenuItem("Pridat řádek");
+        MenuItem save = new MenuItem("_Ulozit");
+        save.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
+        save.setOnAction(event ->
+        {
+            if (file == null)
+                saveAs();
+            else
+                save();
+        });
+        MenuItem saveAs = new MenuItem("Ulo_zit jako");
+        saveAs.setOnAction(event -> saveAs());
+        fileMenu.getItems().addAll(open,save,saveAs);
+
+        Menu control = new Menu("_Data");
+        MenuItem add = new MenuItem("_Pridat řádek");
         add.setOnAction(event -> addPlayer(false));
-        MenuItem delete = new MenuItem("Odebrat řádky");
+        MenuItem delete = new MenuItem("Od_ebrat řádky");
         delete.setOnAction(event -> delPlayers());
         control.getItems().addAll(add,delete);
 
-        menuBar.getMenus().addAll(file, control);
+        menuBar.getMenus().addAll(fileMenu, control);
 
         return menuBar;
     }
 
+    /**
+     * Save players to selected file
+     */
+    private void save()
+    {
+        PrintStream out;
+        try
+        {
+            out = new PrintStream(file);
+        } catch (FileNotFoundException e)
+        {
+            throwAllert("File error.", "File not found.");
+            return;
+        }
+
+        for (Player player: playersList)
+        {
+            out.println(player.getName());
+            player.pointsHistory.stream().forEach(integer ->  out.print(integer+" "));
+            out.println();
+        }
+    }
+
+    /**
+     * Open file chooser and call save function if file is selected
+     */
+    private void saveAs()
+    {
+        FileChooser fileChooser = new FileChooser();
+        file = fileChooser.showSaveDialog(mainStage.getScene().getWindow());
+        if (file != null)
+            save();
+    }
+
+    /**
+     * Pront confirmation and load data from file
+     */
+    private void loadFromFile()
+    {
+        if (!playersList.isEmpty())
+        {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setHeaderText("Opravdu chcete prepsat data, daty ze souboru?");
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.get() != ButtonType.OK)
+            {
+                file = null;
+                return;
+            }
+        }
+
+        Scanner scanner;
+        try
+        {
+            scanner = new Scanner(file);
+        } catch (FileNotFoundException e)
+        {
+            throwAllert("File error.", "File not found.");
+            return;
+        }
+
+        playersList.clear();
+        while (scanner.hasNext())
+        {
+            String jmeno = scanner.nextLine();
+            if (!scanner.hasNextLine())
+            {
+                throwAllert("File error.", "Invalid file format.");
+                return;
+            }
+            Scanner sc = new Scanner(scanner.nextLine());
+
+            ArrayList<Integer> list = new ArrayList<>();
+            while (sc.hasNextInt())
+                list.add(sc.nextInt());
+
+            if (list.isEmpty())
+            {
+                throwAllert("File error.", "Invalid file format.");
+                return;
+            }
+
+            playersList.add(new Player(jmeno,list));
+        }
+    }
+
+    /**
+     * Create buttons section of main window
+     * @return FlowPane with buttons
+     */
     private Node createBottom()
     {
         FlowPane controlPane = new FlowPane();
-
-        // Table is now keyboard controlable so i dont use add and del buttons + their alternative is in menu
-        /*
-        Button buttAdd = new Button("Pridat hrace");
-        Button buttDel = new Button("Odebrat hrace");
-        buttAdd.setOnAction(event -> addPlayer(false));
-        buttDel.setOnAction(event -> delPlayers());
-        controlPane.getChildren().addAll(buttAdd, buttDel);
-        */
 
         Button buttAddScore = new Button("Přidat body");
         buttAddScore.setOnAction(event -> addScore());
         controlPane.getChildren().addAll(buttAddScore);
 
         Button buttShowGraph = new Button("Zobrazit historii");
-        buttShowGraph.setOnAction(event -> showGraph());
+        buttShowGraph.setOnAction(event -> showHistory());
         controlPane.getChildren().addAll(buttShowGraph);
 
         for (Node node : controlPane.getChildren())
@@ -128,7 +235,10 @@ public class Main extends Application
         return controlPane;
     }
 
-    private void showGraph()
+    /**
+     * Create history window
+     */
+    private void showHistory()
     {
         if (historyStage != null)
         {
@@ -136,20 +246,26 @@ public class Main extends Application
             historyStage.show();
             return;
         }
-        historyStage = new TreeStage(tableView.getItems());
+        historyStage = new TreeStage(playersList);
         historyStage.show();
     }
 
-    // Allert when no players were selected
-    private void throwAllert()
+    /**
+     * Create error alert
+     * @param title
+     * @param text
+     */
+    private void throwAllert(String title, String text)
     {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Chyba přidání bodů");
-        alert.setHeaderText("Nebyly vybráni žádní hráči!");
+        alert.setTitle(title);
+        alert.setHeaderText(text);
         alert.show();
     }
 
-    //Create new window for adding score
+    /**
+     * Create add score window for adding score to multiple players.
+     */
     private void addScore()
     {
         if (scoreStage != null)
@@ -161,7 +277,7 @@ public class Main extends Application
         ObservableList<Player> selected = tableView.getSelectionModel().getSelectedItems();
         if (selected.isEmpty())
         {
-            throwAllert();
+            throwAllert("Chyba přidání bodů","Nebyly vybráni žádní hráči!");
             return;
         }
 
@@ -172,10 +288,11 @@ public class Main extends Application
         Label label = new Label(text.toString().substring(0,text.length()-2));
         label.setAlignment(Pos.CENTER);
         label.setPadding(new Insets(5));
+        label.setWrapText(true);
 
         //Create numeric text field
-        NumericField<Integer> numericField = new NumericField<>(0);
-        numericField.setAlignment(Pos.CENTER);
+        TextField textField = new TextField("0");
+        textField.setAlignment(Pos.CENTER);
 
         //Create button
         Button butt = new Button("Přidat");
@@ -188,9 +305,18 @@ public class Main extends Application
         final Stage stage = scoreStage;
         butt.setOnAction(event ->
         {
-            for (Player player : hraci)
+            int value;
+            try
+            {
+                value = Integer.parseInt(textField.getText());
+            }
+            catch (Exception e)
+            {
+                return;
+            }
+            for (Player player : playersList)
                 if (selected.contains(player))
-                    player.setPoints(player.getPoints() + numericField.value);
+                    player.setPoints(player.getPoints() + value);
             tableView.refresh();
             stage.close();
         });
@@ -200,41 +326,47 @@ public class Main extends Application
 
         box.setAlignment(Pos.CENTER);
         box.getChildren().add(label);
-        box.getChildren().add(numericField);
+        box.getChildren().add(textField);
         box.getChildren().add(butt);
         root.setTop(box);
 
         //Show
         scoreStage.setTitle("Přidat body");
-        scoreStage.setScene(new Scene(root, 200, 100));
+        scoreStage.setScene(new Scene(root));
+        scoreStage.sizeToScene();
         scoreStage.show();
     }
 
-    //Delete selected players
+    /**
+     * Delete selected players from list
+     */
     private void delPlayers()
     {
         ObservableList<Player> list = tableView.getSelectionModel().getSelectedItems();
-        hraci.removeAll(list);
+        playersList.removeAll(list);
 
         tableView.getSelectionModel().clearSelection();
     }
 
-    //Add new row with empty name and 0 points
+    /**
+     * Adds new player to list with placeholder name and 0 points
+     * @param checkSelection Check if selected item is last row (for addPlayer called from down arrow event)
+     */
     private void addPlayer(boolean checkSelection)
     {
         //Check if selected item is last row (for addPlayer called from down arrow event)
         if (checkSelection)
         {
             ObservableList<Player> list = tableView.getSelectionModel().getSelectedItems();
-            if (list.size() > 1 && list.get(0) != hraci.get(hraci.size() - 1))
+            if (list.size() > 1 && list.get(0) != playersList.get(playersList.size() - 1))
                 return;
         }
 
         //Check if row without player name isnt already created
         int onlyFocus = -1;
-        for (int i=0;i<hraci.size();i++)
+        for (int i = 0; i< playersList.size(); i++)
         {
-            if (hraci.get(i).name.equals("HRAC"))
+            if (playersList.get(i).name.equals("HRAC"))
             {
                 onlyFocus = i;
                 break;
@@ -244,18 +376,22 @@ public class Main extends Application
         //Create new row only in !onlyFocus case
         if (onlyFocus == -1)
         {
-            hraci.add(new Player("HRAC", 0));
-            tableView.scrollTo(hraci.size()-1);
+            playersList.add(new Player("HRAC", 0));
+            tableView.scrollTo(playersList.size()-1);
         }
 
         //Scroll and focus new row
         tableView.getSelectionModel().clearSelection();
         tableView.requestFocus();
-        tableView.getSelectionModel().select(hraci.size() - 1);
-        tableView.getFocusModel().focus(hraci.size()-1,(TableColumn)tableView.getColumns().get(0));
+        tableView.getSelectionModel().select(playersList.size() - 1);
+        tableView.getFocusModel().focus(playersList.size()-1,(TableColumn)tableView.getColumns().get(0));
 
     }
 
+    /**
+     * Create tableView
+     * @return Returns tableView
+     */
     private Node createTable()
     {
         //Name column create and settings
@@ -273,7 +409,7 @@ public class Main extends Application
         TableColumn<Player,Number> body = new TableColumn<>("Body");
         //Factories
         body.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().points));
-        body.setCellFactory(TextFieldTableCell.<Player,Number>forTableColumn(new NumberStringConverter()));
+        body.setCellFactory(TextFieldTableCell.forTableColumn(new NumberStringConverter()));
         //Change data on edit
         body.setOnEditCommit(t -> t.getTableView().getItems().get(t.getTablePosition().getRow()).setPoints(t.getNewValue().intValue()));
         //Default sort
@@ -304,42 +440,74 @@ public class Main extends Application
         return tableView;
     }
 
-    // Init test data
+    /**
+     * Create init data for testing
+     * @param n number of players to create
+     * @return ObservableList of players
+     */
     private ObservableList createInitData(int n)
     {
         for (int  i = 0; i<n;i++)
         {
-            hraci.add(new Player("Hrac "+(i+1), 78/(i+1)));
+            playersList.add(new Player("Hrac "+(i+1), 78/(i+1)));
         }
 
-        return hraci;
+        return playersList;
     }
 
-
+    /**
+     * Launch gui
+     * @param args
+     */
     public static void main(String[] args) {
         launch(args);
     }
 
-
-    public class Player implements Observable
+    /**
+     * Observable player class, that will notify observer when setter is called
+     */
+    class Player implements Observable
     {
+        /** Name of player */
         private String name;
+        /** Points of player */
         private int points;
+        /** List with point of player */
         private ArrayList<Integer> pointsHistory = new ArrayList<>();
+        /** Listeners for update when name or points are changes */
+        private ArrayList<InvalidationListener> listeners = new ArrayList<>();
 
-        public Player(String name, int points)
+        /**
+         * Constructor when new player is created
+         * @param name Name of player
+         * @param points Initial points of player
+         * */
+        Player(String name, int points)
         {
             this.name = name;
             this.points = points;
             pointsHistory.add(points);
         }
 
-        public String getName()
+        /**
+         * Constructor when new player loaded from file
+         * @param name Name of player
+         * @param list List of player points
+         * */
+        Player(String name, ArrayList<Integer> list)
+        {
+            this.name = name;
+            this.pointsHistory = list;
+            points = 0;
+            list.stream().forEach(integer -> points += integer);
+        }
+
+        String getName()
         {
             return name;
         }
 
-        public void setName(String name)
+        void setName(String name)
         {
             if (name.isEmpty())
                 return;
@@ -347,30 +515,34 @@ public class Main extends Application
             notifyListeners();
         }
 
-        public int getPoints()
+        int getPoints()
         {
             return points;
         }
 
-        public void setPoints(int points)
+        void setPoints(int points)
         {
+            if (points == this.points)
+                return;
             pointsHistory.add(points - this.points);
             this.points = points;
             notifyListeners();
         }
 
-        public ArrayList<Integer> getPointsHistory()
+        ArrayList<Integer> getPointsHistory()
         {
             return pointsHistory;
         }
 
+        /**
+         * Notify listeners called from setters.
+         */
         private void notifyListeners()
         {
             for (InvalidationListener listener : listeners)
                 listener.invalidated(this);
         }
 
-        private ArrayList<InvalidationListener> listeners = new ArrayList<>();
         @Override
         public void addListener(InvalidationListener listener)
         {
@@ -381,6 +553,14 @@ public class Main extends Application
         public void removeListener(InvalidationListener listener)
         {
             listeners.remove(listener);
+        }
+
+        /**
+         * Clear listeners
+         */
+        void clearListeners()
+        {
+            listeners.clear();
         }
     }
 }

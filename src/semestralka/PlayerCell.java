@@ -4,6 +4,7 @@ import javafx.scene.control.TreeItem;
 
 /**
  * Created by smartine on 5.4.2016.
+ * @author smartine
  */
 public class PlayerCell extends javafx.scene.control.TreeCell<TreeItemType>
 {

@@ -12,18 +12,19 @@ import java.util.ArrayList;
 
 /**
  * Created by smartine on 5.4.2016.
+ * @author smartine
  */
 public class TreeStage extends Stage
 {
+    /** treeView reference */
     TreeView<TreeItemType> treeView;
-    ObservableList<Main.Player> players;
-    final Stage s = this;
 
+    /**
+     * Constructor where treeview is created and all lambdas/callbacks are set
+     * @param players List of players to add lambdas
+     */
     public TreeStage(ObservableList<Main.Player> players)
     {
-        this.players = players;
-
-
         setTitle("Historie bodů");
 
         BorderPane root = new BorderPane();
@@ -65,21 +66,36 @@ public class TreeStage extends Stage
                 player.addListener(observable -> treeView.refresh());
             }
             treeView.refresh();
+
         });
 
+
         for (Main.Player player : players)
-            player.addListener(observable -> treeView.refresh());
+        {
+            player.clearListeners();
+            player.addListener(observable -> {
+                treeView.refresh();
+                setAlwaysOnTop(true);
+                setAlwaysOnTop(false);
+            });
+        }
 
         root.setCenter(treeView);
 
 
-        setScene(new Scene(root, 200, 200));
+        setScene(new Scene(root));
+        sizeToScene();
     }
 }
 
+/**
+ * @author smartine
+ */
 class TreeItemType
 {
+    /** Reference to player, can be null */
     Main.Player player;
+    /** Number of points, used when player is null */
     int points;
 
     public TreeItemType(Main.Player player)
